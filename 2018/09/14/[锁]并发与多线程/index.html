@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noto Serif SC, JetBrains Mono:300,300italic,400,400italic,700,700italic|JetBrains Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="线程与进程 进程是CPU资源分配的基本单位，线程是CPU调度与分派的基本单位。 线程是属于进程的。同一个进程下的所有线程共享同一内存空间，但是线程本身基本上不拥有系统资源，只拥有一点运行必须的资源，如程序计数器、一组寄存器和栈。 线程不能独立运行，必须依附在应用程序中。 一个程序至少有一个进程，一个进程至少有一个线程。  一般情况下，定义一个子线程SubThread，如下: 12345678910">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JAVA锁">
+<meta property="og:url" content="http://example.com/2018/09/14/[%E9%94%81]%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%A4%9A%E7%BA%BF%E7%A8%8B/index.html">
+<meta property="og:site_name" content="Samuel">
+<meta property="og:description" content="线程与进程 进程是CPU资源分配的基本单位，线程是CPU调度与分派的基本单位。 线程是属于进程的。同一个进程下的所有线程共享同一内存空间，但是线程本身基本上不拥有系统资源，只拥有一点运行必须的资源，如程序计数器、一组寄存器和栈。 线程不能独立运行，必须依附在应用程序中。 一个程序至少有一个进程，一个进程至少有一个线程。  一般情况下，定义一个子线程SubThread，如下: 12345678910">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-09-14T14:03:25.000Z">
+<meta property="article:modified_time" content="2022-05-28T14:55:44.005Z">
+<meta property="article:author" content="Samuel">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2018/09/14/[%E9%94%81]%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%A4%9A%E7%BA%BF%E7%A8%8B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>JAVA锁 | Samuel</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Samuel</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2018/09/14/[%E9%94%81]%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%A4%9A%E7%BA%BF%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Samuel">
+      <meta itemprop="description" content="Samuel的博客">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Samuel">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JAVA锁
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-09-14 22:03:25" itemprop="dateCreated datePublished" datetime="2018-09-14T22:03:25+08:00">2018-09-14</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>5.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>5 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="线程与进程"><a href="#线程与进程" class="headerlink" title="线程与进程"></a>线程与进程</h1><ul>
+<li>进程是CPU资源分配的基本单位，线程是CPU调度与分派的基本单位。</li>
+<li>线程是属于进程的。同一个进程下的所有线程共享同一内存空间，但是线程本身基本上不拥有系统资源，只拥有一点运行必须的资源，如程序计数器、一组寄存器和栈。</li>
+<li>线程不能独立运行，必须依附在应用程序中。</li>
+<li>一个程序至少有一个进程，一个进程至少有一个线程。</li>
+</ul>
+<p>一般情况下，定义一个子线程SubThread，如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SubThread</span> <span class="keyword">extends</span> <span class="title class_">Thread</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">&quot;sub thread start run&quot;</span>);</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Thread.sleep(<span class="number">5000</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        System.out.println(<span class="string">&quot;sub thread stop run&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>在主线程中进行测试</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MainThread</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">long</span> <span class="variable">start</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line"></span><br><span class="line">        <span class="type">Thread</span> <span class="variable">subThread</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SubThread</span>();</span><br><span class="line">        subThread.start();</span><br><span class="line">        <span class="type">long</span> <span class="variable">end</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line">        System.out.println(<span class="string">&quot;cost time :&quot;</span> + (end - start));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果为：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sub thread start run</span><br><span class="line">cost time :<span class="number">1</span></span><br><span class="line">sub thread stop run</span><br></pre></td></tr></table></figure>
+
+<p>总结：说明主线程与子线程是并发执行的。</p>
+<h3 id="使用JOIN"><a href="#使用JOIN" class="headerlink" title="使用JOIN"></a>使用JOIN</h3><p>修改主线程代码，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">MainThread</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        <span class="type">long</span> <span class="variable">start</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line"></span><br><span class="line">        <span class="type">Thread</span> <span class="variable">subThread</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">SubThread</span>();</span><br><span class="line">        subThread.start();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            subThread.join();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">long</span> <span class="variable">end</span> <span class="operator">=</span> System.currentTimeMillis();</span><br><span class="line">        System.out.println(<span class="string">&quot;cost time :&quot;</span> + (end - start));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再次运行，结果如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sub thread start run</span><br><span class="line">sub thread stop run</span><br><span class="line">cost time :<span class="number">5005</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="锁的分类"><a href="#锁的分类" class="headerlink" title="锁的分类"></a>锁的分类</h1><h3 id="公平锁与非公平锁"><a href="#公平锁与非公平锁" class="headerlink" title="公平锁与非公平锁"></a>公平锁与非公平锁</h3><ul>
+<li>公平锁：多个线程按照申请锁的顺序来获取锁。</li>
+<li>非公平锁：多个线程获取锁的顺序并不是请求锁的顺序，有可能后请求锁的线程先获得锁，所以可能导致<code>优先级反转</code>和<code>饥饿现象</code>。</li>
+</ul>
+<p><strong>区别</strong></p>
+<p>对于公平锁，如果等待队列中有节点，那么新进入竞争的节点一定要在等待队列中排队。而非公平锁，无视等待队列中的节点，直接进行抢占，这有可能导致等待队列中的节点永远无法获取到锁。</p>
+<p><code>Synchronized</code> 非公平锁，非公平锁具有吞吐量大的优点。</p>
+<h3 id="可重入锁"><a href="#可重入锁" class="headerlink" title="可重入锁"></a>可重入锁</h3><p>可重入锁，也叫递归锁，即同一个线程在外层函数获得了锁后，内层递归函数中仍然有获取锁的代码，但是不受影响。</p>
+<p>JAVA中<code>ReentrantLock</code>与<code>Synchronized</code>都是可重入锁，可重入锁可避免死锁。</p>
+<h3 id="偏向锁"><a href="#偏向锁" class="headerlink" title="偏向锁"></a>偏向锁</h3><p>一段代码一直被一个线程访问，那么该线程自动获得锁。</p>
+<h3 id="自旋锁"><a href="#自旋锁" class="headerlink" title="自旋锁"></a>自旋锁</h3><p>JAVA中的线程是映射到操作系统的原生线程上的，线程的唤醒与阻塞都需要操作系统从用户态转换到核心态，这一操作需耗费处理器很多时间，有些情况下状态转换的时间可能比用户代码运行的时间还长。虚拟机开发团队引入了自旋，即让线程执行一个忙循环，这一技术就是自旋锁。</p>
+<p>使用<code>-XX:+UseSpinning</code>开启自旋锁，JDK1.6中已经默认开启。自旋是在轻量锁中使用的，重量锁中线程不使用自旋。</p>
+<h3 id="乐观锁与悲观锁"><a href="#乐观锁与悲观锁" class="headerlink" title="乐观锁与悲观锁"></a>乐观锁与悲观锁</h3><p>悲观锁：假设一定会发生冲突，屏蔽一切可能会违反数据完整性的操作。<br>乐观锁：假设不会发生冲突，只在数据提交前检测是否违反数据完整性，可以采用时间戳或版本号的方式。</p>
+<blockquote>
+<p>乐观锁与悲观锁是一种思想，不要狭义的理解为DBMS中的概念，不能把他们与数据中提供的锁机制(行锁、表锁、排他锁、互斥锁)混为一谈。在DBMS中，悲观锁的实现正是利用了数据库本身提供的所机制。</p>
+</blockquote>
+<blockquote>
+<p>若在MySQL中使用乐观锁，需要手动关闭自动提交功能，因为MySQL默认开启autocommit模式，也就是说，执行了一个更新操作后，MySQL会立即将结果进行提交。<code>set autocommit = 0;</code></p>
+<p>特别说明：使用<code>select column_name from table_name for update;</code>需要注意锁的级别，MySQL的innorDB默认使用行锁，行锁是基于索引的，若一条查询条件没有使用索引，那么就不会使用行级锁，而是锁住整张表。</p>
+</blockquote>
+<p>多读的场景下，使用乐观锁。多写的场景下，使用悲观锁</p>
+<h3 id="共享锁与排它锁"><a href="#共享锁与排它锁" class="headerlink" title="共享锁与排它锁"></a>共享锁与排它锁</h3><p>共享锁：如果事务T对数据A加上了共享锁，其他事务只能对A加共享锁，不能加排它锁。获得共享锁的事务只能读数据，不能修改数据。<br>排它锁：如果事务T对数据A加上了排它锁，其他事务不能对A加任何锁。获得排它锁的事务既可以读数据，也可以修改数据。</p>
+<h3 id="读写锁"><a href="#读写锁" class="headerlink" title="读写锁"></a>读写锁</h3><p>读写锁是指一个资源能被多个读线程访问，或被一个写线程访问但不能同时存在读线程。JAVA中读写锁是通过<code>ReentrantReadWriteLock</code>实现的。</p>
+<h3 id="互斥锁"><a href="#互斥锁" class="headerlink" title="互斥锁"></a>互斥锁</h3><p>互斥锁是指在同一时刻最多只能有一个线程持有锁。JDK中<code>Synchronized</code>就是互斥锁。</p>
+<h1 id="Synchronized"><a href="#Synchronized" class="headerlink" title="Synchronized"></a>Synchronized</h1><ol>
+<li>检查Mark World中是不是当前线程ID，<ul>
+<li>如果是，则当前线程处于偏向锁状态</li>
+<li>如果不是，尝试通过CAS将Mark World替换为当前线程ID<br>  * 如果成功并只偏向标志为1<br>  * 如果失败，说明发生竞争，则撤销偏向锁，转为轻量锁</li>
+</ul>
+</li>
+<li>当前线程尝试使用CAS将对象头Mark World替换为锁记录指针<ul>
+<li>如果成功，线程获得轻量锁</li>
+<li>如果失败，表示其他线程在竞争锁，则当前线程使用自旋来获得锁<ul>
+<li>如果自旋成功，依然处于轻量锁</li>
+<li>如果自旋失败，则转换为重量锁</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h3 id="类锁与对象锁"><a href="#类锁与对象锁" class="headerlink" title="类锁与对象锁"></a>类锁与对象锁</h3><p>类锁：在方法上加上<code>static synchronized</code>，或者<code>synchronized(xxx.class)</code>。</p>
+<p>对象锁：在实例方法上加上<code>synchronized</code>、<code>synchronized(this)</code>或者<code>synchronized(object)</code>。</p>
+<h3 id="同步实例方法"><a href="#同步实例方法" class="headerlink" title="同步实例方法"></a>同步实例方法</h3><p><strong>同步实例方法</strong>同步的是拥有同步方法的对象。如果有多个对象存在，则每个对象在同一时间只能有一个线程执行同步实例方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span> val)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.count += value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>构造方法不能使用synchronized关键字，但是可以使用synchronized代码块来进行同步。</p>
+<p>父类的方法使用了<code>synchronized</code>关键字修饰，子类中覆盖了该方法，则子类中的方法默认是不同步的，必须显式的加上<code>synchronized</code>关键字才会同步，但是若子类调用了父类的同步方法，则子类的方法相当于同步了。</p>
+<h3 id="同步静态方法"><a href="#同步静态方法" class="headerlink" title="同步静态方法"></a>同步静态方法</h3><p><strong>同步静态方法</strong>同步的是拥有同步方法的类，即synchronized修饰的静态方法锁定的是拥有该静态方法类的所有对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> sychronized <span class="keyword">void</span> <span class="title function_">add</span><span class="params">(<span class="type">int</span> value)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.count += value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>synchronized</code>作用一个类，该类的所有对象用同一个锁，与修饰静态方法类似。</p>
+<p>由于在JVM中只能有一个类对象，因此对于一个类，同一时间只能有一个线程执行同步静态方法。</p>
+<h3 id="同步代码块"><a href="#同步代码块" class="headerlink" title="同步代码块"></a>同步代码块</h3><p>一个线程访问一个对象中的<code>synchronized(this)</code>代码块时，其他尝试访问该对象的线程阻塞。</p>
+<p>当一个线程访问一个对象的<code>synchornized(this)</code>代码块时，其他线程仍可以访问非<code>synchronized(this)</code>同步代码块。</p>
+<h1 id="无锁"><a href="#无锁" class="headerlink" title="无锁"></a>无锁</h1><p>CAS就是一种有名的无锁算法。</p>
+<h3 id="CAS与Synchronize应用场景"><a href="#CAS与Synchronize应用场景" class="headerlink" title="CAS与Synchronize应用场景"></a>CAS与Synchronize应用场景</h3><ul>
+<li>资源竞争较少的情况下，使用Synchronized线程阻塞、线程唤醒以及用户态与内核态切换浪费CPU资源，而使用CAS，不需要进入内核态，不需要切换线程，自旋概率小，因此拥有更好的性能。</li>
+<li>资源竞争较大的情况下，CAS自旋概率比较大，CPU资源浪费严重。</li>
+</ul>
+<h1 id="ThreadLocal"><a href="#ThreadLocal" class="headerlink" title="ThreadLocal"></a>ThreadLocal</h1><h3 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h3><p>每个线程内部都存在一份变量的副本，在线程内部任何地方都可以使用，不受其他线程影响。</p>
+<h3 id="冲突解决"><a href="#冲突解决" class="headerlink" title="冲突解决"></a>冲突解决</h3><p>与<code>HashMap</code>使用链表来解决冲突不同，<code>ThreadLocal</code>采用线性探测的方法来处理Hash冲突，即简单的步长加1或减1，查找下一个能够存放的位置。因此建议一个线程新建一个<code>ThreadLocal</code>变量，多个<code>ThreadLocal</code>放入Map中，很容易产生二次冲突，效率很低。</p>
+<h3 id="内存泄漏问题"><a href="#内存泄漏问题" class="headerlink" title="内存泄漏问题"></a>内存泄漏问题</h3><p><code>ThreadLocalMap</code>的key是弱引用，容易出现内存泄露。解决办法就是在使用后，及时调用<code>remove</code>方法。</p>
+<h3 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h3><p>适用于独立变量副本的情况，例如数据库连接、Session线程会话管理。</p>
+<h1 id="绝对线程安全"><a href="#绝对线程安全" class="headerlink" title="绝对线程安全"></a>绝对线程安全</h1><p>避免使用引起非线程安全的条件—共享变量，如果能从设计上避免使用共享变量，既避免了非线程安全的发生，也无需使用锁、同步方法、volatile来保证原子性、可见性与顺序性的问题了。</p>
+<h1 id="COW"><a href="#COW" class="headerlink" title="COW"></a>COW</h1><p>COW即<code>COPY-ON-WRITE</code>，思想是在一开始共享同一个资源，当出现修改操作时，将资源拷贝出去形成一个新资源，在新资源中进行修改。JDK中提供了两种COW机制的并发容器<code>CopyOnWriteArrayList</code>与<code>CopyOnWriteArraySet</code>。</p>
+<p>CopyOnWrite容器即写时复制容器，简单来说，当我们往容器中添加元素时，不直接往当前容器中添加，而是先将容器拷贝一份，在新容器中添加元素，添加操作完成后再把原容器的引用指向新容器。这样可以达到读写分离的效果，并发读不需要加锁。</p>
+<h3 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h3><ul>
+<li>内存占用高。在写操作时，内存中存在两份对象，若对象过大，会触发频繁GC。</li>
+<li>数据一致性问题。读操作不加锁，读到的数据不保证是最新的。</li>
+</ul>
+<h1 id="Volatile"><a href="#Volatile" class="headerlink" title="Volatile"></a>Volatile</h1><p><code>volatile</code>关键字保证了可见性，通过<code>volatile</code>修饰的变量被修改后，会被立即更新到内存中，所有缓存中的变量状态都会被置为无效，因此其他线程需要读取该变量的时候，都必须从主存中读取，这样就保证了所有线程获取变量的值都是最新的了。</p>
+<h1 id="抢锁"><a href="#抢锁" class="headerlink" title="抢锁"></a>抢锁</h1><ol>
+<li>判断锁的状态<ul>
+<li>如果是0，尝试原子抢占该锁；</li>
+<li>如果不是0，判断持有锁的线程与当前线程是不是同一个线程，如果是同一个，去增加状态变量的值</li>
+<li>其他情况获取锁失败</li>
+</ul>
+</li>
+<li>上述步骤失败后，在等待队列中增加一个保存当前线程的节点；</li>
+<li>进入等待队列，如果头节点释放了锁，头节点的下一个节点就会被唤醒，重新尝试去获取锁；</li>
+<li>如果尝试获取锁失败，根据前一个节点的状态判断当前线程是否需要被挂起。<ul>
+<li>前一个节点状态是<code>SIGNAL</code>，需要被挂起</li>
+<li>前一个节点是取消状态，则需要将取消节点从队列中移除</li>
+<li>前一个节点是其他状态，则将前一个节点设置成<code>SIGNAL</code>，当前节点不需要挂起，进行二次抢占</li>
+</ul>
+</li>
+</ol>
+<h1 id="释放锁"><a href="#释放锁" class="headerlink" title="释放锁"></a>释放锁</h1><ol>
+<li>尝试去除锁的独自线程，并将状态变量减一，主要因为可重入锁自身可能多次占用锁，只有状态变为0，才表示完全释放了锁</li>
+<li>释放锁成功后，将头节点的状态修改为0，然后唤醒下一个非取消节点线程</li>
+<li>被唤醒的线程进入<strong>抢锁</strong>第4步</li>
+</ol>
+<h1 id="死锁"><a href="#死锁" class="headerlink" title="死锁"></a>死锁</h1><h3 id="四个必要条件"><a href="#四个必要条件" class="headerlink" title="四个必要条件"></a>四个必要条件</h3><ol>
+<li>资源互斥。同一个系统资源在同一时间只能被一个进程使用。</li>
+<li>占有等待。一个进程因等待资源而阻塞时，它持有的资源不释放。</li>
+<li>不可抢占。进程已拥有的资源，在未使用完之前，不能强行剥夺。</li>
+<li>循环等待。若干线程形成首尾相接的循环资源等待关系。</li>
+</ol>
+<h3 id="如何避免死锁"><a href="#如何避免死锁" class="headerlink" title="如何避免死锁"></a>如何避免死锁</h3><ul>
+<li>加锁顺序</li>
+<li>加锁时限</li>
+<li>死锁检测</li>
+</ul>
+<h3 id="排查方法"><a href="#排查方法" class="headerlink" title="排查方法"></a>排查方法</h3><ul>
+<li>Jstack命令，查看进程的堆栈信息</li>
+<li>Jconsole命令，选择本地线程，检测死锁</li>
+</ul>
+<h1 id="ConcurentHashMap"><a href="#ConcurentHashMap" class="headerlink" title="ConcurentHashMap"></a>ConcurentHashMap</h1><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><ul>
+<li>segment继承ReentrantLock</li>
+<li>remove方法，链表中待删除元素之后的元素原样保留在新链表中，待删除元素之前的元素翻转了顺序加入到新链表中</li>
+<li>remove方法未改变原始链表，所以不影响读操作</li>
+<li>segment中表示元素个数的count、hashentry中value字段都被标注为<code>volatile</code>，保证了内存可见性。</li>
+<li>size方法，先尝试不加锁，计算两次，若两次计算都失败，即modCount在计算前后的值不相同，则进行加锁累加各segment中count大小。</li>
+</ul>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><blockquote>
+<p><a target="_blank" rel="noopener" href="https://www.hollischuang.com/archives/934">深入理解乐观锁与悲观锁</a></p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/09/08/SpringBoot%E9%9B%86%E6%88%90%E9%80%9A%E7%94%A8Mybatis/" rel="prev" title="Spring boot集成通用Mybatis">
+      <i class="fa fa-chevron-left"></i> Spring boot集成通用Mybatis
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/12/17/Docker/" rel="next" title="Docker">
+      Docker <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E7%A8%8B%E4%B8%8E%E8%BF%9B%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">线程与进程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8JOIN"><span class="nav-number">1.0.1.</span> <span class="nav-text">使用JOIN</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%94%81%E7%9A%84%E5%88%86%E7%B1%BB"><span class="nav-number">2.</span> <span class="nav-text">锁的分类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%AC%E5%B9%B3%E9%94%81%E4%B8%8E%E9%9D%9E%E5%85%AC%E5%B9%B3%E9%94%81"><span class="nav-number">2.0.1.</span> <span class="nav-text">公平锁与非公平锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%AF%E9%87%8D%E5%85%A5%E9%94%81"><span class="nav-number">2.0.2.</span> <span class="nav-text">可重入锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%81%8F%E5%90%91%E9%94%81"><span class="nav-number">2.0.3.</span> <span class="nav-text">偏向锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%87%AA%E6%97%8B%E9%94%81"><span class="nav-number">2.0.4.</span> <span class="nav-text">自旋锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B9%90%E8%A7%82%E9%94%81%E4%B8%8E%E6%82%B2%E8%A7%82%E9%94%81"><span class="nav-number">2.0.5.</span> <span class="nav-text">乐观锁与悲观锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B1%E4%BA%AB%E9%94%81%E4%B8%8E%E6%8E%92%E5%AE%83%E9%94%81"><span class="nav-number">2.0.6.</span> <span class="nav-text">共享锁与排它锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%BB%E5%86%99%E9%94%81"><span class="nav-number">2.0.7.</span> <span class="nav-text">读写锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%92%E6%96%A5%E9%94%81"><span class="nav-number">2.0.8.</span> <span class="nav-text">互斥锁</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Synchronized"><span class="nav-number">3.</span> <span class="nav-text">Synchronized</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E9%94%81%E4%B8%8E%E5%AF%B9%E8%B1%A1%E9%94%81"><span class="nav-number">3.0.1.</span> <span class="nav-text">类锁与对象锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E5%AE%9E%E4%BE%8B%E6%96%B9%E6%B3%95"><span class="nav-number">3.0.2.</span> <span class="nav-text">同步实例方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E9%9D%99%E6%80%81%E6%96%B9%E6%B3%95"><span class="nav-number">3.0.3.</span> <span class="nav-text">同步静态方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%8C%E6%AD%A5%E4%BB%A3%E7%A0%81%E5%9D%97"><span class="nav-number">3.0.4.</span> <span class="nav-text">同步代码块</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%97%A0%E9%94%81"><span class="nav-number">4.</span> <span class="nav-text">无锁</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CAS%E4%B8%8ESynchronize%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">4.0.1.</span> <span class="nav-text">CAS与Synchronize应用场景</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ThreadLocal"><span class="nav-number">5.</span> <span class="nav-text">ThreadLocal</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89"><span class="nav-number">5.0.1.</span> <span class="nav-text">定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%B2%E7%AA%81%E8%A7%A3%E5%86%B3"><span class="nav-number">5.0.2.</span> <span class="nav-text">冲突解决</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E9%97%AE%E9%A2%98"><span class="nav-number">5.0.3.</span> <span class="nav-text">内存泄漏问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">5.0.4.</span> <span class="nav-text">适用场景</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%9D%E5%AF%B9%E7%BA%BF%E7%A8%8B%E5%AE%89%E5%85%A8"><span class="nav-number">6.</span> <span class="nav-text">绝对线程安全</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#COW"><span class="nav-number">7.</span> <span class="nav-text">COW</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BC%BA%E7%82%B9"><span class="nav-number">7.0.1.</span> <span class="nav-text">缺点</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Volatile"><span class="nav-number">8.</span> <span class="nav-text">Volatile</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8A%A2%E9%94%81"><span class="nav-number">9.</span> <span class="nav-text">抢锁</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%87%8A%E6%94%BE%E9%94%81"><span class="nav-number">10.</span> <span class="nav-text">释放锁</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%AD%BB%E9%94%81"><span class="nav-number">11.</span> <span class="nav-text">死锁</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%9B%E4%B8%AA%E5%BF%85%E8%A6%81%E6%9D%A1%E4%BB%B6"><span class="nav-number">11.0.1.</span> <span class="nav-text">四个必要条件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%81%BF%E5%85%8D%E6%AD%BB%E9%94%81"><span class="nav-number">11.0.2.</span> <span class="nav-text">如何避免死锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95"><span class="nav-number">11.0.3.</span> <span class="nav-text">排查方法</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ConcurentHashMap"><span class="nav-number">12.</span> <span class="nav-text">ConcurentHashMap</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8E%9F%E7%90%86"><span class="nav-number">12.0.1.</span> <span class="nav-text">原理</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">13.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Samuel</p>
+  <div class="site-description" itemprop="description">Samuel的博客</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Samuel</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    <span title="站点总字数">42k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">38 分钟</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
